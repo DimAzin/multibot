@@ -2,9 +2,9 @@ import telebot
 from PIL import Image
 import io
 from telebot import types
-import settings
 
-TOKEN = settings.TOKEN_telegram
+
+TOKEN = TOKEN_telegram
 bot = telebot.TeleBot(TOKEN)
 bot.remove_webhook()
 user_states = {}  # Хранение данных пользователя
