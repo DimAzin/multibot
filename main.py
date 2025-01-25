@@ -1,5 +1,5 @@
 import telebot
-from PIL import Image
+from PIL import Image, ImageOps
 import io
 from telebot import types
 import os
@@ -15,6 +15,21 @@ user_states = {}  # Хранение данных пользователя
 
 DEFAULT_ASCII_CHARS = '@%#*+=-:. '
 
+# Функция для создания негатива изображения
+def invert_colors(image):
+    """
+    Инвертирует цвета изображения, создавая эффект негатива.
+    """
+    if image.mode == 'RGBA':
+        r, g, b, a = image.split()
+        rgb_image = Image.merge("RGB", (r, g, b))
+        inverted_image = ImageOps.invert(rgb_image)
+        r, g, b = inverted_image.split()
+        return Image.merge("RGBA", (r, g, b, a))
+    elif image.mode == 'RGB':
+        return ImageOps.invert(image)
+    else:
+        raise ValueError("Unsupported image mode for inversion")
 
 def pixelate_image(image, pixel_size):
     """
@@ -62,6 +77,30 @@ def image_to_ascii(image_stream, ascii_chars, new_width=40):
 def send_welcome(message):
     bot.reply_to(message, "Send me an image, and I'll provide options for you!")
 
+
+#Обработчик для инверсии цветов
+@bot.callback_query_handler(func=lambda call: call.data == "invert_colors")
+def invert_colors_and_send(call):
+    try:
+        bot.answer_callback_query(call.id, "Inverting colors of your image...")
+        chat_id = call.message.chat.id
+        photo_id = user_states[chat_id]['photo']
+        file_info = bot.get_file(photo_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+
+        # Работаем с изображением
+        image_stream = io.BytesIO(downloaded_file)
+        image = Image.open(image_stream)
+        inverted_image = invert_colors(image)
+
+        # Сохраняем результат в поток и отправляем пользователю
+        output_stream = io.BytesIO()
+        inverted_image.save(output_stream, format="JPEG")
+        output_stream.seek(0)
+        bot.send_photo(chat_id, output_stream)
+    except Exception as e:
+        bot.send_message(call.message.chat.id, f"Error during color inversion: {e}")
+
 @bot.message_handler(content_types=['photo'])
 def handle_photo(message):
     try:
@@ -76,7 +115,8 @@ def get_options_keyboard():
     keyboard = types.InlineKeyboardMarkup()
     pixelate_btn = types.InlineKeyboardButton("Pixelate", callback_data="pixelate")
     ascii_btn = types.InlineKeyboardButton("ASCII Art", callback_data="ascii")
-    keyboard.add(pixelate_btn, ascii_btn)
+    invert_btn = types.InlineKeyboardButton("Invert Colors", callback_data="invert_colors")  # Новая кнопка
+    keyboard.add(pixelate_btn, ascii_btn, invert_btn)
     return keyboard
 
 @bot.callback_query_handler(func=lambda call: True)
