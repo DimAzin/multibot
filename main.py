@@ -111,13 +111,63 @@ def handle_photo(message):
     except Exception as e:
         bot.reply_to(message, f"Error: {e}")
 
+
+# Функция для отражения изображения
+def mirror_image(image, mode="horizontal"):
+    """
+    Создает зеркальное отражение изображения.
+
+    :param image: объект изображения PIL
+    :param mode: 'horizontal' для горизонтального отражения, 'vertical' для вертикального
+    :return: зеркально отраженное изображение
+    """
+    if mode == "horizontal":
+        return image.transpose(Image.FLIP_LEFT_RIGHT)
+    elif mode == "vertical":
+        return image.transpose(Image.FLIP_TOP_BOTTOM)
+    else:
+        raise ValueError("Invalid mode. Use 'horizontal' or 'vertical'.")
+
+
+# Обновлена функция для получения клавиатуры с новыми кнопками
 def get_options_keyboard():
     keyboard = types.InlineKeyboardMarkup()
     pixelate_btn = types.InlineKeyboardButton("Pixelate", callback_data="pixelate")
     ascii_btn = types.InlineKeyboardButton("ASCII Art", callback_data="ascii")
-    invert_btn = types.InlineKeyboardButton("Invert Colors", callback_data="invert_colors")  # Новая кнопка
+    invert_btn = types.InlineKeyboardButton("Invert Colors", callback_data="invert_colors")
+    mirror_horiz_btn = types.InlineKeyboardButton("Mirror Horizontally", callback_data="mirror_horizontal")
+    mirror_vert_btn = types.InlineKeyboardButton("Mirror Vertically", callback_data="mirror_vertical")
+
     keyboard.add(pixelate_btn, ascii_btn, invert_btn)
+    keyboard.add(mirror_horiz_btn, mirror_vert_btn)  # Кнопки для зеркального отражения
     return keyboard
+
+
+# Обработчики для зеркального отражения
+@bot.callback_query_handler(func=lambda call: call.data in ["mirror_horizontal", "mirror_vertical"])
+def mirror_image_and_send(call):
+    try:
+        bot.answer_callback_query(call.id, "Mirroring your image...")
+        chat_id = call.message.chat.id
+        photo_id = user_states[chat_id]['photo']
+        file_info = bot.get_file(photo_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+
+        # Открываем изображение
+        image_stream = io.BytesIO(downloaded_file)
+        image = Image.open(image_stream)
+
+        # Выбираем режим отражения
+        mode = "horizontal" if call.data == "mirror_horizontal" else "vertical"
+        mirrored_image = mirror_image(image, mode)
+
+        # Сохраняем результат и отправляем пользователю
+        output_stream = io.BytesIO()
+        mirrored_image.save(output_stream, format="JPEG")
+        output_stream.seek(0)
+        bot.send_photo(chat_id, output_stream)
+    except Exception as e:
+        bot.send_message(call.message.chat.id, f"Error during mirroring: {e}")
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):

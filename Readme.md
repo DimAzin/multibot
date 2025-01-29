@@ -42,6 +42,10 @@ invert_colors(image):
 
 - Инвертирует цвета изображения, создавая эффект негатива.
 
+mirror_image(image, mode="horizontal"):
+
+- Создает зеркальное отражение изображения.
+
 Взаимодействие с пользователем
 
 Обработчики сообщений:
@@ -79,3 +83,5 @@ invert_colors(image):
 ![img_3.png](img_3.png)
 
 ![img_4.png](img_4.png)
+
+![img_5.png](img_5.png)
